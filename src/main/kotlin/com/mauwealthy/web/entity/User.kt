@@ -21,6 +21,7 @@ import java.time.LocalDate
 @Table(name = "users")
 class User(
     @Id
+    @Column(name = "id", columnDefinition = "varchar(255)")
     var id: String = "",
 
     @Column(nullable = false)
@@ -302,6 +303,7 @@ class Streak(
 @Table(name = "debts")
 class Debt(
     @Id
+    @Column(name = "id", columnDefinition = "varchar(255)")
     var id: String = "",
 
     @Column(nullable = false)
