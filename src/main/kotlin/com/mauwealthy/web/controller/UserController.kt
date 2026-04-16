@@ -1,18 +1,69 @@
 package com.mauwealthy.web.controller
 
-import com.mauwealthy.web.entity.User
-import com.mauwealthy.web.repository.UserRepository
+import com.mauwealthy.web.dto.ChatMessagePayload
+import com.mauwealthy.web.dto.CreateChatMessageRequest
+import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.UserPayload
+import com.mauwealthy.web.service.UserService
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/users")
 class UserController(
-    private val repo: UserRepository
+    private val userService: UserService,
 ) {
-
+    /** POST /api/users - Create a full user profile from db.json-style payload. */
     @PostMapping
-    fun create(@RequestBody user: User) = repo.save(user)
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody payload: UserPayload): UserPayload = userService.create(payload)
 
+    /** GET /api/users - Get all users including nested profile data. */
     @GetMapping
-    fun findAll() = repo.findAll()
+    fun findAll(): List<UserPayload> = userService.findAll()
+
+    /** GET /api/users/{id} - Get one user profile by id. */
+    @GetMapping("/{id}")
+    fun findById(@PathVariable id: String): UserPayload = userService.findById(id)
+
+    /** PUT /api/users/{id} - Replace one user profile with full payload. */
+    @PutMapping("/{id}")
+    fun update(
+        @PathVariable id: String,
+        @Valid @RequestBody payload: UserPayload,
+    ): UserPayload = userService.update(id, payload)
+
+    /** DELETE /api/users/{id} - Remove a user and all related nested data. */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable id: String) = userService.delete(id)
+
+    /** GET /api/users/{id}/debts - Get all debt records for a specific user. */
+    @GetMapping("/{id}/debts")
+    fun findDebts(@PathVariable id: String): List<DebtPayload> = userService.findDebtsByUserId(id)
+
+    /** POST /api/users/{id}/debts - Add one debt item to a user. */
+    @PostMapping("/{id}/debts")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addDebt(
+        @PathVariable id: String,
+        @Valid @RequestBody payload: DebtPayload,
+    ): DebtPayload = userService.addDebt(id, payload)
+
+    /** GET /api/users/{id}/journal/chats?date=yyyy-MM-dd - Get chat messages by date. */
+    @GetMapping("/{id}/journal/chats")
+    fun findChatByDate(
+        @PathVariable id: String,
+        @RequestParam date: String,
+    ): List<ChatMessagePayload> = userService.findChatByDate(id, date)
+
+    /** POST /api/users/{id}/journal/chats?date=yyyy-MM-dd - Add a chat message for one date. */
+    @PostMapping("/{id}/journal/chats")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addChatMessage(
+        @PathVariable id: String,
+        @RequestParam date: String,
+        @RequestBody payload: CreateChatMessageRequest,
+    ): ChatMessagePayload = userService.addChatMessage(id, date, payload)
 }
