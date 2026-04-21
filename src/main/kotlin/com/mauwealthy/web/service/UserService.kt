@@ -3,6 +3,7 @@ package com.mauwealthy.web.service
 import com.mauwealthy.web.dto.ChatMessagePayload
 import com.mauwealthy.web.dto.CreateChatMessageRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.entity.BudgetAllocation
 import com.mauwealthy.web.entity.ChatMessage
@@ -59,6 +60,49 @@ class UserService(
         }
 
         val saved = userRepository.save(toEntity(payload, existing))
+        return toPayload(saved)
+    }
+
+    @Transactional
+    fun patchFinancialData(id: String, payload: FinancialDataPatchPayload): UserPayload {
+        val user = getUserOrThrow(id)
+        val financialData = user.financialData ?: FinancialData().also {
+            it.user = user
+            user.financialData = it
+        }
+
+        payload.pendapatan?.let { financialData.pendapatan = it }
+        payload.pengeluaranWajib?.let { financialData.pengeluaranWajib = it }
+        payload.tanggalPemasukan?.let { financialData.tanggalPemasukan = it }
+        payload.intendedTanggalPemasukan?.let { financialData.intendedTanggalPemasukan = it }
+        payload.hutangWajib?.let { financialData.hutangWajib = it }
+        payload.estimasiTabungan?.let { financialData.estimasiTabungan = it }
+        payload.danaDarurat?.let { financialData.danaDarurat = it }
+        payload.currentPengeluaranLimit?.let { financialData.currentPengeluaranLimit = it }
+        payload.currentPengeluaranUsed?.let { financialData.currentPengeluaranUsed = it }
+        payload.currentSisaSaldoPool?.let { financialData.currentSisaSaldoPool = it }
+        payload.lastCycleCarryOverSaldo?.let { financialData.lastCycleCarryOverSaldo = it }
+
+        payload.currentCycleStart?.let { financialData.currentCycleStart = parseLocalDateOrNull(it) }
+        payload.currentCycleEnd?.let { financialData.currentCycleEnd = parseLocalDateOrNull(it) }
+
+        payload.budgetAllocation?.let { budgetPatch ->
+            val budgetAllocation = financialData.budgetAllocation
+            budgetPatch.mode?.let { budgetAllocation.mode = it }
+            budgetPatch.pengeluaran?.let { budgetAllocation.pengeluaran = it }
+            budgetPatch.wants?.let { budgetAllocation.wants = it }
+            budgetPatch.savings?.let { budgetAllocation.savings = it }
+        }
+
+        payload.monthlyTopUp?.let { topUpPatch ->
+            val monthlyTopUp = financialData.monthlyTopUp
+            topUpPatch.cycleKey?.let { monthlyTopUp.cycleKey = it }
+            topUpPatch.fromTabunganCount?.let { monthlyTopUp.fromTabunganCount = it }
+            topUpPatch.totalFromTabungan?.let { monthlyTopUp.totalFromTabungan = it }
+            topUpPatch.totalFromDanaDarurat?.let { monthlyTopUp.totalFromDanaDarurat = it }
+        }
+
+        val saved = userRepository.save(user)
         return toPayload(saved)
     }
 

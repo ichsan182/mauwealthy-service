@@ -215,6 +215,31 @@ Contoh response:
 
 Catatan: `id` pada path dan body harus sama.
 
+### 4b. Patch Financial Data (Partial Update)
+- Method: `PATCH`
+- URL: `/api/users/{id}/financial-data`
+- Full URL: `http://localhost:8081/api/users/user-001/financial-data`
+- Body: `FinancialDataPatchPayload` (hanya field yang mau diubah)
+- Success: `200 OK`
+
+Contoh request body:
+```json
+{
+  "pendapatan": 8000000,
+  "danaDarurat": 4500000,
+  "budgetAllocation": {
+    "wants": 25,
+    "savings": 25
+  },
+  "monthlyTopUp": {
+    "totalFromTabungan": 250000
+  },
+  "currentCycleEnd": "2026-05-31"
+}
+```
+
+Catatan: field yang tidak dikirim akan tetap memakai nilai lama.
+
 ### 5. Delete User
 - Method: `DELETE`
 - URL: `/api/users/{id}`
@@ -282,9 +307,9 @@ Contoh response:
 
 Contoh request body: pakai JSON `CreateChatMessageRequest` di atas.
 
-## FinancialData — Tidak Ada Endpoint Khusus
+## FinancialData
 
-> **Penting:** `financialData` **tidak memiliki endpoint tersendiri**. Data ini adalah bagian dari `UserPayload` dan dikelola sepenuhnya lewat endpoint User (Create/Get/Update/Delete).
+> **Penting:** `financialData` bisa dikelola dengan 2 cara: `PATCH` khusus financial data (partial update) atau lewat `POST/GET/PUT/DELETE` pada endpoint user.
 
 ### Cara Mengakses / Mengubah FinancialData
 
@@ -292,11 +317,17 @@ Contoh request body: pakai JSON `CreateChatMessageRequest` di atas.
 |------|--------|-----|
 | **Buat** user beserta financialData | `POST` | `/api/users` |
 | **Baca** financialData user | `GET` | `/api/users/{id}` |
+| **Update sebagian** financialData user | `PATCH` | `/api/users/{id}/financial-data` |
 | **Update** financialData user | `PUT` | `/api/users/{id}` |
 | **Hapus** user (dan semua datanya) | `DELETE` | `/api/users/{id}` |
 
 ### Alur Update FinancialData
 
+**Opsi A (partial update):**
+1. `PATCH /api/users/{id}/financial-data`.
+2. Kirim hanya field `financialData` yang mau diubah.
+
+**Opsi B (replace penuh):**
 1. `GET /api/users/{id}` → ambil data user lengkap.
 2. Modifikasi bagian `financialData` di JSON.
 3. `PUT /api/users/{id}` → kirim kembali seluruh `UserPayload` yang sudah diubah.

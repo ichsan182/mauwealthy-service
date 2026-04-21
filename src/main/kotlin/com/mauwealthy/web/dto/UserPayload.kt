@@ -103,6 +103,24 @@ data class FinancialDataPayload(
     val currentCycleEnd: String?,
 )
 
+data class FinancialDataPatchPayload(
+    val pendapatan: Long? = null,
+    val pengeluaranWajib: Long? = null,
+    val tanggalPemasukan: Int? = null,
+    val intendedTanggalPemasukan: Int? = null,
+    val hutangWajib: Long? = null,
+    val estimasiTabungan: Long? = null,
+    val danaDarurat: Long? = null,
+    val budgetAllocation: BudgetAllocationPatchPayload? = null,
+    val currentPengeluaranLimit: Long? = null,
+    val currentPengeluaranUsed: Long? = null,
+    val currentSisaSaldoPool: Long? = null,
+    val lastCycleCarryOverSaldo: Long? = null,
+    val monthlyTopUp: MonthlyTopUpPatchPayload? = null,
+    val currentCycleStart: String? = null,
+    val currentCycleEnd: String? = null,
+)
+
 data class BudgetAllocationPayload(
     val mode: Int,
     val pengeluaran: Int,
@@ -110,11 +128,25 @@ data class BudgetAllocationPayload(
     val savings: Int,
 )
 
+data class BudgetAllocationPatchPayload(
+    val mode: Int? = null,
+    val pengeluaran: Int? = null,
+    val wants: Int? = null,
+    val savings: Int? = null,
+)
+
 data class MonthlyTopUpPayload(
     val cycleKey: String?,
     val fromTabunganCount: Int,
     val totalFromTabungan: Long,
     val totalFromDanaDarurat: Long,
+)
+
+data class MonthlyTopUpPatchPayload(
+    val cycleKey: String? = null,
+    val fromTabunganCount: Int? = null,
+    val totalFromTabungan: Long? = null,
+    val totalFromDanaDarurat: Long? = null,
 )
 
 data class StreakPayload(

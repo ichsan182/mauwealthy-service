@@ -3,6 +3,7 @@ package com.mauwealthy.web.controller
 import com.mauwealthy.web.dto.ChatMessagePayload
 import com.mauwealthy.web.dto.CreateChatMessageRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.service.UserService
 import jakarta.validation.Valid
@@ -33,6 +34,13 @@ class UserController(
         @PathVariable id: String,
         @Valid @RequestBody payload: UserPayload,
     ): UserPayload = userService.update(id, payload)
+
+    /** PATCH /api/users/{id}/financial-data - Update only selected financialData fields. */
+    @PatchMapping("/{id}/financial-data")
+    fun patchFinancialData(
+        @PathVariable id: String,
+        @RequestBody payload: FinancialDataPatchPayload,
+    ): UserPayload = userService.patchFinancialData(id, payload)
 
     /** DELETE /api/users/{id} - Remove a user and all related nested data. */
     @DeleteMapping("/{id}")
