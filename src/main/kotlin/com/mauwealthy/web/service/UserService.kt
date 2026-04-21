@@ -2,8 +2,12 @@ package com.mauwealthy.web.service
 
 import com.mauwealthy.web.dto.ChatMessagePayload
 import com.mauwealthy.web.dto.CreateChatMessageRequest
+import com.mauwealthy.web.dto.CreateExpenseRequest
+import com.mauwealthy.web.dto.CreateIncomeRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
+import com.mauwealthy.web.dto.IncomePayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.entity.BudgetAllocation
 import com.mauwealthy.web.entity.ChatMessage
@@ -188,6 +192,70 @@ class UserService(
             text = chat.text,
             time = chat.time,
         )
+    }
+
+    fun findExpensesByDate(userId: String, date: String): List<ExpensePayload> {
+        val parsedDate = parseDateOrThrow(date)
+        val journal = getUserOrThrow(userId).journal
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found")
+
+        return journal.expenses
+            .filter { it.expenseDate == parsedDate }
+            .map { ExpensePayload(amount = it.amount, description = it.description, category = it.category) }
+    }
+
+    @Transactional
+    fun addExpense(userId: String, date: String, request: CreateExpenseRequest): ExpensePayload {
+        val parsedDate = parseDateOrThrow(date)
+        val user = getUserOrThrow(userId)
+        val journal = user.journal ?: Journal().also {
+            it.user = user
+            user.journal = it
+        }
+
+        val expense = ExpenseEntry(
+            amount = request.amount,
+            description = request.description,
+            category = request.category,
+            expenseDate = parsedDate,
+        )
+        expense.journal = journal
+        journal.expenses.add(expense)
+        userRepository.save(user)
+
+        return ExpensePayload(amount = expense.amount, description = expense.description, category = expense.category)
+    }
+
+    fun findIncomesByDate(userId: String, date: String): List<IncomePayload> {
+        val parsedDate = parseDateOrThrow(date)
+        val journal = getUserOrThrow(userId).journal
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found")
+
+        return journal.incomes
+            .filter { it.incomeDate == parsedDate }
+            .map { IncomePayload(amount = it.amount, description = it.description, source = it.source) }
+    }
+
+    @Transactional
+    fun addIncome(userId: String, date: String, request: CreateIncomeRequest): IncomePayload {
+        val parsedDate = parseDateOrThrow(date)
+        val user = getUserOrThrow(userId)
+        val journal = user.journal ?: Journal().also {
+            it.user = user
+            user.journal = it
+        }
+
+        val income = IncomeEntry(
+            amount = request.amount,
+            description = request.description,
+            source = request.source,
+            incomeDate = parsedDate,
+        )
+        income.journal = journal
+        journal.incomes.add(income)
+        userRepository.save(user)
+
+        return IncomePayload(amount = income.amount, description = income.description, source = income.source)
     }
 
     private fun getUserOrThrow(id: String): User = userRepository.findById(id)

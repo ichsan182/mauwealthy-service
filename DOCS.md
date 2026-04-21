@@ -307,9 +307,90 @@ Contoh response:
 
 Contoh request body: pakai JSON `CreateChatMessageRequest` di atas.
 
+### 10. Get Expenses By Date
+- Method: `GET`
+- URL: `/api/users/{id}/journal/expenses?date=yyyy-MM-dd`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/expenses?date=2026-04-20`
+- Success: `200 OK`
+- Response: `List<ExpensePayload>`
+
+Contoh response:
+```json
+[
+  {
+    "amount": 50000,
+    "description": "Makan siang",
+    "category": "Food"
+  }
+]
+```
+
+### 11. Add Expense
+- Method: `POST`
+- URL: `/api/users/{id}/journal/expenses?date=yyyy-MM-dd`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/expenses?date=2026-04-20`
+- Body:
+```json
+{
+  "amount": 50000,
+  "description": "Makan siang",
+  "category": "Food"
+}
+```
+- Success: `201 Created`
+- Response: `ExpensePayload`
+
+### 12. Get Incomes By Date
+- Method: `GET`
+- URL: `/api/users/{id}/journal/incomes?date=yyyy-MM-dd`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/incomes?date=2026-04-20`
+- Success: `200 OK`
+- Response: `List<IncomePayload>`
+
+Contoh response:
+```json
+[
+  {
+    "amount": 1000000,
+    "description": "Gaji freelance",
+    "source": "Freelance"
+  }
+]
+```
+
+### 13. Add Income
+- Method: `POST`
+- URL: `/api/users/{id}/journal/incomes?date=yyyy-MM-dd`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/incomes?date=2026-04-20`
+- Body:
+```json
+{
+  "amount": 1000000,
+  "description": "Gaji freelance",
+  "source": "Freelance"
+}
+```
+- Success: `201 Created`
+- Response: `IncomePayload`
+
 ## FinancialData
 
 > **Penting:** `financialData` bisa dikelola dengan 2 cara: `PATCH` khusus financial data (partial update) atau lewat `POST/GET/PUT/DELETE` pada endpoint user.
+
+## Journal — Ringkasan Endpoint
+
+> Data `journal`, `journal_expenses`, `journal_incomes` dikelola lewat endpoint terpisah per resource per tanggal. Format tanggal selalu `yyyy-MM-dd`.
+
+| Aksi | Method | URL |
+|------|--------|-----|
+| Lihat chat per tanggal | `GET` | `/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
+| Tambah chat | `POST` | `/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
+| Lihat pengeluaran per tanggal | `GET` | `/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| Tambah pengeluaran | `POST` | `/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| Lihat pemasukan per tanggal | `GET` | `/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+| Tambah pemasukan | `POST` | `/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+
+> Catatan: data journal **bulk** (semua tanggal sekaligus) bisa dibaca lewat `GET /api/users/{id}` — field `journal.chatByDate`, `journal.expensesByDate`, `journal.incomesByDate`.
 
 ### Cara Mengakses / Mengubah FinancialData
 

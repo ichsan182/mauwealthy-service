@@ -2,8 +2,12 @@ package com.mauwealthy.web.controller
 
 import com.mauwealthy.web.dto.ChatMessagePayload
 import com.mauwealthy.web.dto.CreateChatMessageRequest
+import com.mauwealthy.web.dto.CreateExpenseRequest
+import com.mauwealthy.web.dto.CreateIncomeRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
+import com.mauwealthy.web.dto.IncomePayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.service.UserService
 import jakarta.validation.Valid
@@ -74,4 +78,36 @@ class UserController(
         @RequestParam date: String,
         @RequestBody payload: CreateChatMessageRequest,
     ): ChatMessagePayload = userService.addChatMessage(id, date, payload)
+
+    /** GET /api/users/{id}/journal/expenses?date=yyyy-MM-dd - Get expenses by date. */
+    @GetMapping("/{id}/journal/expenses")
+    fun findExpensesByDate(
+        @PathVariable id: String,
+        @RequestParam date: String,
+    ): List<ExpensePayload> = userService.findExpensesByDate(id, date)
+
+    /** POST /api/users/{id}/journal/expenses?date=yyyy-MM-dd - Add an expense for one date. */
+    @PostMapping("/{id}/journal/expenses")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addExpense(
+        @PathVariable id: String,
+        @RequestParam date: String,
+        @RequestBody payload: CreateExpenseRequest,
+    ): ExpensePayload = userService.addExpense(id, date, payload)
+
+    /** GET /api/users/{id}/journal/incomes?date=yyyy-MM-dd - Get incomes by date. */
+    @GetMapping("/{id}/journal/incomes")
+    fun findIncomesByDate(
+        @PathVariable id: String,
+        @RequestParam date: String,
+    ): List<IncomePayload> = userService.findIncomesByDate(id, date)
+
+    /** POST /api/users/{id}/journal/incomes?date=yyyy-MM-dd - Add an income for one date. */
+    @PostMapping("/{id}/journal/incomes")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addIncome(
+        @PathVariable id: String,
+        @RequestParam date: String,
+        @RequestBody payload: CreateIncomeRequest,
+    ): IncomePayload = userService.addIncome(id, date, payload)
 }

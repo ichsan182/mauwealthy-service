@@ -174,3 +174,15 @@ data class CreateChatMessageRequest(
     val time: String,
 )
 
+data class CreateExpenseRequest(
+    val amount: Long,
+    val description: String,
+    val category: String,
+)
+
+data class CreateIncomeRequest(
+    val amount: Long,
+    val description: String,
+    val source: String,
+)
+
