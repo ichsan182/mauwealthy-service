@@ -18,6 +18,7 @@ import com.mauwealthy.web.entity.IncomeEntry
 import com.mauwealthy.web.entity.InvestmentWatchlist
 import com.mauwealthy.web.entity.Journal
 import com.mauwealthy.web.entity.MonthlyTopUp
+import com.mauwealthy.web.entity.SavingsAllocation
 import com.mauwealthy.web.entity.Streak
 import com.mauwealthy.web.entity.User
 import com.mauwealthy.web.entity.WatchlistItem
@@ -82,6 +83,7 @@ class UserService(
         payload.hutangWajib?.let { financialData.hutangWajib = it }
         payload.estimasiTabungan?.let { financialData.estimasiTabungan = it }
         payload.danaDarurat?.let { financialData.danaDarurat = it }
+        payload.danaInvestasi?.let { financialData.danaInvestasi = it }
         payload.currentPengeluaranLimit?.let { financialData.currentPengeluaranLimit = it }
         payload.currentPengeluaranUsed?.let { financialData.currentPengeluaranUsed = it }
         payload.currentSisaSaldoPool?.let { financialData.currentSisaSaldoPool = it }
@@ -104,6 +106,24 @@ class UserService(
             topUpPatch.fromTabunganCount?.let { monthlyTopUp.fromTabunganCount = it }
             topUpPatch.totalFromTabungan?.let { monthlyTopUp.totalFromTabungan = it }
             topUpPatch.totalFromDanaDarurat?.let { monthlyTopUp.totalFromDanaDarurat = it }
+        }
+
+        payload.savingsAllocation?.let { allocationPatch ->
+            val savingsAllocation = financialData.savingsAllocation
+            allocationPatch.tabungan?.let { savingsAllocation.tabungan = it }
+            allocationPatch.danaDarurat?.let { savingsAllocation.danaDarurat = it }
+            allocationPatch.danaInvestasi?.let { savingsAllocation.danaInvestasi = it }
+        }
+
+        payload.savingsAllocationDelta?.let { deltaPatch ->
+            val savingsAllocation = financialData.savingsAllocation
+            deltaPatch.tabungan?.let { savingsAllocation.tabungan += it }
+            deltaPatch.danaDarurat?.let { savingsAllocation.danaDarurat += it }
+            deltaPatch.danaInvestasi?.let { savingsAllocation.danaInvestasi += it }
+        }
+
+        payload.investmentTracking?.cycleAmounts?.let { cycleAmountsPatch ->
+            financialData.investmentCycleAmounts.putAll(cycleAmountsPatch)
         }
 
         val saved = userRepository.save(user)
@@ -158,6 +178,8 @@ class UserService(
                     sender = it.sender,
                     text = it.text,
                     time = it.time,
+                    parsedText = it.parsedText,
+                    parsedNominal = it.parsedNominal,
                 )
             }
             .toList()
@@ -173,12 +195,18 @@ class UserService(
         }
 
         val nextId = journal.nextChatMessageId
+
+        // Auto-parse nominal + text only for user messages
+        val parsed = if (request.sender == "user") ChatTextParser.parse(request.text) else ChatTextParser.ParseResult(null, null)
+
         val chat = ChatMessage(
             messageId = nextId,
             sender = request.sender,
             text = request.text,
             time = request.time,
             chatDate = parsedDate,
+            parsedText = parsed.parsedText,
+            parsedNominal = parsed.parsedNominal,
         )
         chat.journal = journal
 
@@ -191,6 +219,8 @@ class UserService(
             sender = chat.sender,
             text = chat.text,
             time = chat.time,
+            parsedText = chat.parsedText,
+            parsedNominal = chat.parsedNominal,
         )
     }
 
@@ -299,12 +329,15 @@ class UserService(
                 journalPayload.chatByDate.forEach { (date, messages) ->
                     val parsedDate = parseDateOrThrow(date)
                     messages.forEach { message ->
+                        val parsed = if (message.sender == "user") ChatTextParser.parse(message.text) else ChatTextParser.ParseResult(null, null)
                         val chat = ChatMessage(
                             messageId = message.id,
                             sender = message.sender,
                             text = message.text,
                             time = message.time,
                             chatDate = parsedDate,
+                            parsedText = parsed.parsedText,
+                            parsedNominal = parsed.parsedNominal,
                         )
                         chat.journal = journal
                         journal.chatMessages.add(chat)
@@ -350,6 +383,7 @@ class UserService(
                 hutangWajib = financialPayload.hutangWajib,
                 estimasiTabungan = financialPayload.estimasiTabungan,
                 danaDarurat = financialPayload.danaDarurat,
+                danaInvestasi = financialPayload.danaInvestasi,
                 currentPengeluaranLimit = financialPayload.currentPengeluaranLimit,
                 currentPengeluaranUsed = financialPayload.currentPengeluaranUsed,
                 currentSisaSaldoPool = financialPayload.currentSisaSaldoPool,
@@ -369,6 +403,13 @@ class UserService(
                     totalFromTabungan = financialPayload.monthlyTopUp.totalFromTabungan,
                     totalFromDanaDarurat = financialPayload.monthlyTopUp.totalFromDanaDarurat,
                 )
+                financialData.savingsAllocation = SavingsAllocation(
+                    tabungan = financialPayload.savingsAllocation.tabungan,
+                    danaDarurat = financialPayload.savingsAllocation.danaDarurat,
+                    danaInvestasi = financialPayload.savingsAllocation.danaInvestasi,
+                )
+                financialData.investmentCycleAmounts.clear()
+                financialData.investmentCycleAmounts.putAll(financialPayload.investmentTracking.cycleAmounts)
                 financialData.user = user
             }
         }
@@ -441,6 +482,8 @@ class UserService(
                                 sender = it.sender,
                                 text = it.text,
                                 time = it.time,
+                                parsedText = it.parsedText,
+                                parsedNominal = it.parsedNominal,
                             )
                         },
                     ),
@@ -477,6 +520,7 @@ class UserService(
                 hutangWajib = financial.hutangWajib,
                 estimasiTabungan = financial.estimasiTabungan,
                 danaDarurat = financial.danaDarurat,
+                danaInvestasi = financial.danaInvestasi,
                 budgetAllocation = com.mauwealthy.web.dto.BudgetAllocationPayload(
                     mode = financial.budgetAllocation.mode,
                     pengeluaran = financial.budgetAllocation.pengeluaran,
@@ -495,6 +539,14 @@ class UserService(
                 ),
                 currentCycleStart = financial.currentCycleStart?.toString(),
                 currentCycleEnd = financial.currentCycleEnd?.toString(),
+                savingsAllocation = com.mauwealthy.web.dto.SavingsAllocationPayload(
+                    tabungan = financial.savingsAllocation.tabungan,
+                    danaDarurat = financial.savingsAllocation.danaDarurat,
+                    danaInvestasi = financial.savingsAllocation.danaInvestasi,
+                ),
+                investmentTracking = com.mauwealthy.web.dto.InvestmentTrackingPayload(
+                    cycleAmounts = financial.investmentCycleAmounts.toMap(),
+                ),
             )
         },
         streak = entity.streak?.let { streak ->

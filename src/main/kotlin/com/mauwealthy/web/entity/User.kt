@@ -1,7 +1,11 @@
 package com.mauwealthy.web.entity
 
+import jakarta.persistence.AttributeOverride
+import jakarta.persistence.AttributeOverrides
 import jakarta.persistence.CascadeType
+import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
+import jakarta.persistence.ElementCollection
 import jakarta.persistence.Embedded
 import jakarta.persistence.Embeddable
 import jakarta.persistence.Entity
@@ -10,6 +14,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.MapKeyColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
 import jakarta.persistence.OneToOne
@@ -151,6 +156,13 @@ class ChatMessage(
 
     @Column(nullable = false)
     var chatDate: LocalDate = LocalDate.now(),
+
+    // parsed fields — only populated when sender == "user"
+    @Column(nullable = true, length = 1000)
+    var parsedText: String? = null,
+
+    @Column(nullable = true)
+    var parsedNominal: Long? = null,
 ) {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "journal_id", nullable = false)
@@ -233,6 +245,9 @@ class FinancialData(
     @Column(nullable = false)
     var danaDarurat: Long = 0,
 
+    @Column(nullable = true)
+    var danaInvestasi: Long = 0,
+
     @Column(nullable = false)
     var currentPengeluaranLimit: Long = 0,
 
@@ -255,6 +270,20 @@ class FinancialData(
     @Embedded
     var monthlyTopUp: MonthlyTopUp = MonthlyTopUp()
 
+    @Embedded
+    @AttributeOverrides(
+        AttributeOverride(name = "tabungan", column = Column(name = "savings_allocation_tabungan", nullable = true)),
+        AttributeOverride(name = "danaDarurat", column = Column(name = "savings_allocation_dana_darurat", nullable = true)),
+        AttributeOverride(name = "danaInvestasi", column = Column(name = "savings_allocation_dana_investasi", nullable = true))
+    )
+    var savingsAllocation: SavingsAllocation = SavingsAllocation()
+
+    @ElementCollection
+    @CollectionTable(name = "investment_tracking_cycle_amounts", joinColumns = [JoinColumn(name = "financial_data_id")])
+    @MapKeyColumn(name = "cycle_key")
+    @Column(name = "amount", nullable = false)
+    var investmentCycleAmounts: MutableMap<String, Long> = mutableMapOf()
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     var user: User? = null
@@ -274,6 +303,13 @@ class MonthlyTopUp(
     var fromTabunganCount: Int = 0,
     var totalFromTabungan: Long = 0,
     var totalFromDanaDarurat: Long = 0,
+)
+
+@Embeddable
+class SavingsAllocation(
+    var tabungan: Long = 0,
+    var danaDarurat: Long = 0,
+    var danaInvestasi: Long = 0,
 )
 
 @Entity

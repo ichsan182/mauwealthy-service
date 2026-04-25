@@ -71,6 +71,8 @@ data class ChatMessagePayload(
     val sender: String,
     val text: String,
     val time: String,
+    val parsedText: String? = null,
+    val parsedNominal: Long? = null,
 )
 
 data class ExpensePayload(
@@ -93,6 +95,7 @@ data class FinancialDataPayload(
     val hutangWajib: Long,
     val estimasiTabungan: Long,
     val danaDarurat: Long,
+    val danaInvestasi: Long = 0,
     val budgetAllocation: BudgetAllocationPayload,
     val currentPengeluaranLimit: Long,
     val currentPengeluaranUsed: Long,
@@ -101,6 +104,8 @@ data class FinancialDataPayload(
     val monthlyTopUp: MonthlyTopUpPayload,
     val currentCycleStart: String?,
     val currentCycleEnd: String?,
+    val savingsAllocation: SavingsAllocationPayload = SavingsAllocationPayload(),
+    val investmentTracking: InvestmentTrackingPayload = InvestmentTrackingPayload(),
 )
 
 data class FinancialDataPatchPayload(
@@ -111,6 +116,7 @@ data class FinancialDataPatchPayload(
     val hutangWajib: Long? = null,
     val estimasiTabungan: Long? = null,
     val danaDarurat: Long? = null,
+    val danaInvestasi: Long? = null,
     val budgetAllocation: BudgetAllocationPatchPayload? = null,
     val currentPengeluaranLimit: Long? = null,
     val currentPengeluaranUsed: Long? = null,
@@ -119,6 +125,29 @@ data class FinancialDataPatchPayload(
     val monthlyTopUp: MonthlyTopUpPatchPayload? = null,
     val currentCycleStart: String? = null,
     val currentCycleEnd: String? = null,
+    val savingsAllocation: SavingsAllocationPatchPayload? = null,
+    val savingsAllocationDelta: SavingsAllocationPatchPayload? = null,
+    val investmentTracking: InvestmentTrackingPatchPayload? = null,
+)
+
+data class SavingsAllocationPayload(
+    val tabungan: Long = 0,
+    val danaDarurat: Long = 0,
+    val danaInvestasi: Long = 0,
+)
+
+data class SavingsAllocationPatchPayload(
+    val tabungan: Long? = null,
+    val danaDarurat: Long? = null,
+    val danaInvestasi: Long? = null,
+)
+
+data class InvestmentTrackingPayload(
+    val cycleAmounts: Map<String, Long> = emptyMap(),
+)
+
+data class InvestmentTrackingPatchPayload(
+    val cycleAmounts: Map<String, Long>? = null,
 )
 
 data class BudgetAllocationPayload(

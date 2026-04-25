@@ -85,6 +85,7 @@ Contoh endpoint lengkap:
     "hutangWajib": 500000,
     "estimasiTabungan": 1500000,
     "danaDarurat": 4000000,
+    "danaInvestasi": 200000,
     "budgetAllocation": {
       "mode": 1,
       "pengeluaran": 50,
@@ -102,7 +103,18 @@ Contoh endpoint lengkap:
       "totalFromDanaDarurat": 0
     },
     "currentCycleStart": "2026-04-01",
-    "currentCycleEnd": "2026-04-30"
+    "currentCycleEnd": "2026-04-30",
+    "savingsAllocation": {
+      "tabungan": 200000,
+      "danaDarurat": 200000,
+      "danaInvestasi": 200000
+    },
+    "investmentTracking": {
+      "cycleAmounts": {
+        "2026-04-25": 2500000,
+        "2026-05-25": 2500000
+      }
+    }
   },
   "streak": {
     "current": 4,
@@ -147,8 +159,8 @@ Contoh endpoint lengkap:
 ```json
 {
   "sender": "user",
-  "text": "Hari ini pengeluaran saya berapa ya?",
-  "time": "10:15"
+  "text": "makan sapi 10000",
+  "time": "21:17"
 }
 ```
 
@@ -158,10 +170,14 @@ Contoh endpoint lengkap:
 {
   "id": 1,
   "sender": "user",
-  "text": "Hari ini pengeluaran saya berapa ya?",
-  "time": "10:15"
+  "text": "makan sapi 10000",
+  "time": "21:17",
+  "parsedText": "makan sapi",
+  "parsedNominal": 10000
 }
 ```
+
+> `parsedText` dan `parsedNominal` hanya diisi otomatis saat `sender == "user"`. Pesan dari `assistant` akan selalu `null` untuk kedua field tersebut.
 
 ## Daftar Endpoint
 
@@ -222,11 +238,14 @@ Catatan: `id` pada path dan body harus sama.
 - Body: `FinancialDataPatchPayload` (hanya field yang mau diubah)
 - Success: `200 OK`
 
-Contoh request body:
+**3 Cara Update:**
+
+**Cara 1: Patch absolut (saldo + field biasa)**
 ```json
 {
   "pendapatan": 8000000,
   "danaDarurat": 4500000,
+  "danaInvestasi": 350000,
   "budgetAllocation": {
     "wants": 25,
     "savings": 25
@@ -237,8 +256,35 @@ Contoh request body:
   "currentCycleEnd": "2026-05-31"
 }
 ```
+→ Field dikirim langsung akan di-replace.
 
-Catatan: field yang tidak dikirim akan tetap memakai nilai lama.
+**Cara 2: Patch delta (akumulasi setoran)**
+```json
+{
+  "savingsAllocationDelta": {
+    "tabungan": 500000,
+    "danaDarurat": 250000,
+    "danaInvestasi": 100000
+  }
+}
+```
+→ Field `savingsAllocation` akan **ditambah** (bukan replace).
+
+**Cara 3: Patch investment tracking (merge per key)**
+```json
+{
+  "investmentTracking": {
+    "cycleAmounts": {
+      "2026-06-25": 3000000
+    }
+  }
+}
+```
+→ Merge dengan key existing (bukan overwrite total).
+
+Catatan: field yang tidak dikirim akan tetap memakai nilai lama. Lihat **Skenario Update FinancialData** untuk contoh real-world.
+
+
 
 ### 5. Delete User
 - Method: `DELETE`
@@ -291,8 +337,18 @@ Contoh response:
   {
     "id": 1,
     "sender": "user",
-    "text": "Halo",
-    "time": "09:00"
+    "text": "makan sapi 10000",
+    "time": "21:17",
+    "parsedText": "makan sapi",
+    "parsedNominal": 10000
+  },
+  {
+    "id": 2,
+    "sender": "assistant",
+    "text": "Dicatat: Rp 10.000 untuk \"makan sapi\" kategori makanan.",
+    "time": "21:17",
+    "parsedText": null,
+    "parsedNominal": null
   }
 ]
 ```
@@ -392,6 +448,117 @@ Contoh response:
 
 > Catatan: data journal **bulk** (semua tanggal sekaligus) bisa dibaca lewat `GET /api/users/{id}` — field `journal.chatByDate`, `journal.expensesByDate`, `journal.incomesByDate`.
 
+---
+
+## Chat Natural Language Parsing
+
+Fitur ini memungkinkan user mengetik pesan bebas dan sistem secara otomatis memisahkan **nominal** dan **teks deskripsi**.
+
+### Cara Kerja
+
+- Saat POST chat message dengan `sender == "user"`, server otomatis parse `text`.
+- Token yang **hanya terdiri dari angka** akan dianggap sebagai **nominal** (diambil yang pertama).
+- Sisa token dijadikan **parsedText** (deskripsi).
+- `sender == "assistant"` → `parsedText` dan `parsedNominal` selalu `null`.
+
+### Contoh Input → Output
+
+| Input (`text`) | `parsedText` | `parsedNominal` |
+|----------------|--------------|-----------------|
+| `makan 10000` | `makan` | `10000` |
+| `10000 makan` | `makan` | `10000` |
+| `makan sapi 10000` | `makan sapi` | `10000` |
+| `123456789 netflix nonton tv` | `netflix nonton tv` | `123456789` |
+| `pergi 12345690` | `pergi` | `12345690` |
+| `halo saja` | `halo saja` | `null` |
+| `100000` | `null` | `100000` |
+
+### Format Pairing Percakapan (User + Assistant)
+
+```json
+[
+  {
+    "sender": "user",
+    "text": "makan 100000",
+    "time": "21:17"
+  },
+  {
+    "sender": "assistant",
+    "text": "Dicatat: Rp 100.000 untuk \"makan\" kategori makanan.",
+    "time": "21:17"
+  }
+]
+```
+
+Keduanya dikirim sebagai 2 request POST terpisah (masing-masing 1 pesan), dengan `id` auto-increment oleh server (1, 2, 3, ..., n).
+
+### Request & Response
+
+**Request:**
+```bash
+POST http://localhost:8081/api/users/user-001/journal/chats?date=2026-04-20
+Content-Type: application/json
+
+{
+  "sender": "user",
+  "text": "makan sapi 10000",
+  "time": "21:17"
+}
+```
+
+**Response `201 Created`:**
+```json
+{
+  "id": 1,
+  "sender": "user",
+  "text": "makan sapi 10000",
+  "time": "21:17",
+  "parsedText": "makan sapi",
+  "parsedNominal": 10000
+}
+```
+
+**Request (assistant reply):**
+```bash
+POST http://localhost:8081/api/users/user-001/journal/chats?date=2026-04-20
+Content-Type: application/json
+
+{
+  "sender": "assistant",
+  "text": "Dicatat: Rp 10.000 untuk \"makan sapi\" kategori makanan.",
+  "time": "21:17"
+}
+```
+
+**Response `201 Created`:**
+```json
+{
+  "id": 2,
+  "sender": "assistant",
+  "text": "Dicatat: Rp 10.000 untuk \"makan sapi\" kategori makanan.",
+  "time": "21:17",
+  "parsedText": null,
+  "parsedNominal": null
+}
+```
+
+### Database Schema (chat_messages)
+
+Kolom baru yang ditambahkan (auto-migrate, tidak perlu drop table):
+```
+parsed_text    VARCHAR(1000) NULL   -- deskripsi yang sudah dipisah
+parsed_nominal BIGINT        NULL   -- nominal yang sudah dipisah
+```
+
+Kolom lama tetap ada:
+```
+text           VARCHAR(1000) NOT NULL  -- raw input asli dari user
+```
+
+> **Best Practice:** Simpan `text` asli apa adanya (raw), dan baca `parsedText`/`parsedNominal` di FE untuk display. Dengan begini kalau parsing logic berubah, data lama masih bisa di-reparse dari `text`.
+
+---
+
 ### Cara Mengakses / Mengubah FinancialData
 
 | Aksi | Method | URL |
@@ -438,6 +605,7 @@ Contoh response:
     "hutangWajib": 500000,
     "estimasiTabungan": 1500000,
     "danaDarurat": 4000000,
+    "danaInvestasi": 200000,
     "budgetAllocation": {
       "mode": 1,
       "pengeluaran": 50,
@@ -455,7 +623,18 @@ Contoh response:
       "totalFromDanaDarurat": 0
     },
     "currentCycleStart": "2026-04-01",
-    "currentCycleEnd": "2026-04-30"
+    "currentCycleEnd": "2026-04-30",
+    "savingsAllocation": {
+      "tabungan": 200000,
+      "danaDarurat": 200000,
+      "danaInvestasi": 200000
+    },
+    "investmentTracking": {
+      "cycleAmounts": {
+        "2026-04-25": 2500000,
+        "2026-05-25": 2500000
+      }
+    }
   }
 }
 ```
@@ -473,6 +652,7 @@ Contoh response:
 | `hutangWajib` | `Long` | Total cicilan hutang wajib per bulan |
 | `estimasiTabungan` | `Long` | Target tabungan per bulan |
 | `danaDarurat` | `Long` | Saldo dana darurat saat ini |
+| `danaInvestasi` | `Long` | Saldo dana investasi saat ini |
 | `currentPengeluaranLimit` | `Long` | Batas pengeluaran siklus ini |
 | `currentPengeluaranUsed` | `Long` | Pengeluaran yang sudah terpakai |
 | `currentSisaSaldoPool` | `Long` | Sisa saldo yang bisa dipakai |
@@ -487,6 +667,148 @@ Contoh response:
 | `monthlyTopUp.fromTabunganCount` | `Int` | Jumlah topup dari tabungan |
 | `monthlyTopUp.totalFromTabungan` | `Long` | Total nominal dari tabungan |
 | `monthlyTopUp.totalFromDanaDarurat` | `Long` | Total nominal dari dana darurat |
+| `savingsAllocation.tabungan` | `Long` | Akumulasi total setoran ke tabungan |
+| `savingsAllocation.danaDarurat` | `Long` | Akumulasi total setoran ke dana darurat |
+| `savingsAllocation.danaInvestasi` | `Long` | Akumulasi total setoran ke dana investasi |
+| `investmentTracking.cycleAmounts` | `Map<String, Long>` | Riwayat nominal investasi per cycle key |
+
+### Best Practice (Avoid Redundant)
+
+- `estimasiTabungan`, `danaDarurat`, `danaInvestasi` = **saldo saat ini** (snapshot).
+- `savingsAllocation` = **akumulasi setoran user selama pencatatan** (historical cumulative).
+- Gunakan `savingsAllocationDelta` saat patch transaksi baru agar tidak overwrite total akumulasi.
+- Gunakan `savingsAllocation` (non-delta) hanya saat koreksi/manual backfill.
+
+### Skenario Update FinancialData
+
+#### Skenario A: User top-up tabungan
+**Flow:**
+1. User melakukan top-up tabungan **Rp 500.000** dari gaji.
+2. Client kirim PATCH dengan `savingsAllocationDelta` (bukan absolut).
+3. Server akan: `savingsAllocation.tabungan += 500000`.
+
+**Request:**
+```bash
+PATCH http://localhost:8081/api/users/user-001/financial-data
+Content-Type: application/json
+
+{
+  "estimasiTabungan": 1500000,
+  "savingsAllocationDelta": {
+    "tabungan": 500000
+  }
+}
+```
+
+**Expected Response:** `200 OK`
+- `estimasiTabungan` berubah ke `1500000` (update saldo)
+- `savingsAllocation.tabungan` bertambah dari `200000` → `700000` (akumulasi)
+
+---
+
+#### Skenario B: User withdraw dari dana darurat
+**Flow:**
+1. User mengambil dana darurat **Rp 250.000** untuk kebutuhan mendesak.
+2. Saldo berkurang, tapi akumulasi tetap tercatat.
+
+**Request:**
+```bash
+PATCH http://localhost:8081/api/users/user-001/financial-data
+Content-Type: application/json
+
+{
+  "danaDarurat": 34950000,
+  "savingsAllocationDelta": {
+    "danaDarurat": -250000
+  }
+}
+```
+
+**Expected Response:** `200 OK`
+- `danaDarurat` (saldo) berubah ke `34950000` (snapshot saat ini)
+- `savingsAllocation.danaDarurat` berkurang dari `200000` → `-50000` (net flow tercatat)
+
+---
+
+#### Skenario C: Admin backfill/koreksi
+**Flow:**
+1. Admin perlu set ulang `savingsAllocation` ke nilai tertentu (e.g., data sync dari sistem lain).
+2. Gunakan `savingsAllocation` absolut (bukan delta).
+
+**Request:**
+```bash
+PATCH http://localhost:8081/api/users/user-001/financial-data
+Content-Type: application/json
+
+{
+  "savingsAllocation": {
+    "tabungan": 1000000,
+    "danaDarurat": 500000,
+    "danaInvestasi": 300000
+  }
+}
+```
+
+**Expected Response:** `200 OK`
+- `savingsAllocation` di-replace ke nilai yang dikirim (bukan ditambah).
+
+---
+
+#### Skenario D: Add investment cycle tracking
+**Flow:**
+1. User melakukan investasi **Rp 3.000.000** pada cycle **2026-07-25**.
+2. Client patch `investmentTracking.cycleAmounts` dengan key baru.
+
+**Request:**
+```bash
+PATCH http://localhost:8081/api/users/user-001/financial-data
+Content-Type: application/json
+
+{
+  "danaInvestasi": 500000,
+  "investmentTracking": {
+    "cycleAmounts": {
+      "2026-07-25": 3000000
+    }
+  }
+}
+```
+
+**Expected Response:** `200 OK`
+- `danaInvestasi` saldo update
+- `investmentTracking.cycleAmounts` merge: key `2026-07-25` ditambah/update dengan value `3000000`
+- Key lama (`2026-04-25`, `2026-05-25`) tetap tersimpan
+
+---
+
+### Tabel Perbandingan Update Strategy
+
+| Strategy | Use Case | Behavior |
+|----------|----------|----------|
+| `savingsAllocation` (absolut) | Admin backfill / koreksi data | Replace total, **BUKAN** tambah |
+| `savingsAllocationDelta` | User top-up / withdraw | **Tambah/kurang** ke akumulasi |
+| `investmentTracking.cycleAmounts` | Tracking per cycle | Merge per key (bukan overwrite total) |
+
+---
+
+### Architecture Decision
+
+**Mengapa pisahkan saldo vs akumulasi?**
+
+```
+Skenario tanpa pisahan:
+- User top-up Rp 500.000 → set savingsAllocation.tabungan = 500.000
+- User top-up Rp 300.000 lagi → set savingsAllocation.tabungan = 300.000 ❌
+  (data sebelumnya hilang!)
+
+Skenario dengan pisahan:
+- savingsAllocation.tabungan = 500.000 (akumulasi setoran)
+- estimasiTabungan = 1.500.000 (target/saldo saat ini)
+- User withdraw Rp 200.000 → 
+  estimasiTabungan -= 200.000 (saldo turun)
+  savingsAllocationDelta.tabungan -= 200.000 (net flow tercatat)
+- Hasil: savingsAllocation.tabungan = 300.000 ✅ (history preserved)
+```
 
 ---
 
@@ -511,3 +833,221 @@ Contoh pesan lain:
 - `Date must use ISO format yyyy-MM-dd` (`400`)
 - `Timestamp must use ISO format` (`400`)
 
+---
+
+## Contoh cURL / Postman
+
+### Create User dengan FinancialData
+```bash
+curl -X POST http://localhost:8081/api/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user-001",
+    "name": "Budi",
+    "email": "budi@mail.com",
+    "phone": "08123456789",
+    "password": "rahasia",
+    "onboardingCompleted": true,
+    "level": 3,
+    "investmentWatchlist": null,
+    "journal": null,
+    "streak": null,
+    "debts": [],
+    "financialData": {
+      "pendapatan": 10000000,
+      "pengeluaranWajib": 3500000,
+      "tanggalPemasukan": 26,
+      "intendedTanggalPemasukan": 26,
+      "hutangWajib": 0,
+      "estimasiTabungan": 40200000,
+      "danaDarurat": 35200000,
+      "danaInvestasi": 200000,
+      "budgetAllocation": {
+        "mode": 2,
+        "pengeluaran": 35,
+        "wants": 0,
+        "savings": 65
+      },
+      "currentPengeluaranLimit": 3500000,
+      "currentPengeluaranUsed": 110000,
+      "currentSisaSaldoPool": 12524124,
+      "lastCycleCarryOverSaldo": 6500000,
+      "monthlyTopUp": {
+        "cycleKey": "2026-03-25",
+        "fromTabunganCount": 0,
+        "totalFromTabungan": 0,
+        "totalFromDanaDarurat": 0
+      },
+      "currentCycleStart": "2026-03-26",
+      "currentCycleEnd": "2026-04-25",
+      "savingsAllocation": {
+        "tabungan": 200000,
+        "danaDarurat": 200000,
+        "danaInvestasi": 200000
+      },
+      "investmentTracking": {
+        "cycleAmounts": {
+          "2026-03-25": 8400000,
+          "2026-04-25": 2500000,
+          "2026-05-25": 2500000
+        }
+      }
+    }
+  }'
+```
+
+### PATCH Financial Data (Top-up Tabungan)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/financial-data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "estimasiTabungan": 41200000,
+    "savingsAllocationDelta": {
+      "tabungan": 1000000
+    }
+  }'
+```
+
+### PATCH Financial Data (Withdraw Dana Darurat)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/financial-data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "danaDarurat": 35000000,
+    "savingsAllocationDelta": {
+      "danaDarurat": -200000
+    }
+  }'
+```
+
+### PATCH Financial Data (Add Investment Cycle)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/financial-data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "danaInvestasi": 500000,
+    "investmentTracking": {
+      "cycleAmounts": {
+        "2026-06-25": 3000000
+      }
+    }
+  }'
+```
+
+### PATCH Financial Data (Admin Backfill)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/financial-data \
+  -H "Content-Type: application/json" \
+  -d '{
+    "savingsAllocation": {
+      "tabungan": 5000000,
+      "danaDarurat": 2000000,
+      "danaInvestasi": 1500000
+    }
+  }'
+```
+
+### Get User (dengan FinancialData)
+```bash
+curl -X GET http://localhost:8081/api/users/user-001 \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## Summary: Workflow Rekomendasi
+
+### 1. Setup awal (Admin/Create User)
+```
+POST /api/users ← Kirim UserPayload lengkap dengan financialData
+```
+
+### 2. Daily: User top-up/withdraw
+```
+PATCH /api/users/{id}/financial-data
+├─ Update saldo: estimasiTabungan, danaDarurat, danaInvestasi
+└─ Update akumulasi: savingsAllocationDelta (tambah/kurang)
+```
+
+### 3. Monthly: Investment cycle entry
+```
+PATCH /api/users/{id}/financial-data
+├─ Update saldo: danaInvestasi
+└─ Update tracking: investmentTracking.cycleAmounts
+```
+
+### 4. Quarterly/Yearly: Data sync/backfill
+```
+PATCH /api/users/{id}/financial-data
+├─ Koreksi akumulasi: savingsAllocation (absolut, bukan delta)
+└─ Koreksi saldo: estimasiTabungan, danaDarurat, danaInvestasi
+```
+
+### 5. Reporting/Audit
+```
+GET /api/users/{id}
+├─ Cek saldo saat ini (snapshot): estimasiTabungan, danaDarurat, danaInvestasi
+├─ Cek akumulasi (history): savingsAllocation
+└─ Cek timeline: investmentTracking.cycleAmounts
+```
+
+---
+
+## Catatan Database Schema
+
+**Tabel `financial_data`:**
+```
+Kolom saldo (nullable=true untuk backward compat):
+- dana_darurat
+- dana_investasi
+- estimasi_tabungan
+
+Kolom akumulasi (dengan prefix savings_allocation_):
+- savings_allocation_tabungan
+- savings_allocation_dana_darurat
+- savings_allocation_dana_investasi
+
+Kolom lainnya:
+- pendapatan
+- pengeluaran_wajib
+- ... (existing columns)
+```
+
+**Tabel `investment_tracking_cycle_amounts` (ElementCollection):**
+```
+Columns:
+- financial_data_id (FK ke financial_data)
+- cycle_key (map key, e.g., "2026-03-25")
+- amount (map value, e.g., 8400000)
+```
+
+---
+
+## Troubleshooting
+
+**Q: Saya PATCH dengan `savingsAllocationDelta` tapi tidak ada perubahan?**
+A: Pastikan field ada di JSON, dan field-nya nullable di database. Reset DB jika ada schema conflict.
+
+**Q: Kapan pakai delta vs absolut?**
+A: 
+- **Delta** → user action (top-up, withdraw) = normal flow
+- **Absolut** → admin action (koreksi, sync) = exceptional flow
+
+**Q: Bagaimana kalau ingin update multiple field sekaligus?**
+A: Bisa dalam 1 PATCH request. Contoh:
+```json
+{
+  "pendapatan": 11000000,
+  "estimasiTabungan": 42200000,
+  "danaInvestasi": 600000,
+  "savingsAllocationDelta": {
+    "tabungan": 1500000,
+    "danaInvestasi": 500000
+  },
+  "investmentTracking": {
+    "cycleAmounts": {
+      "2026-07-25": 3500000
+    }
+  }
+}
+```
