@@ -8,6 +8,7 @@ import com.mauwealthy.web.dto.DebtPayload
 import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.IncomePayload
+import com.mauwealthy.web.dto.InvestmentWatchlistPatchPayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.entity.BudgetAllocation
 import com.mauwealthy.web.entity.ChatMessage
@@ -124,6 +125,36 @@ class UserService(
 
         payload.investmentTracking?.cycleAmounts?.let { cycleAmountsPatch ->
             financialData.investmentCycleAmounts.putAll(cycleAmountsPatch)
+        }
+
+        val saved = userRepository.save(user)
+        return toPayload(saved)
+    }
+
+    @Transactional
+    fun patchWatchlist(id: String, payload: InvestmentWatchlistPatchPayload): UserPayload {
+        val user = getUserOrThrow(id)
+        val watchlist = user.investmentWatchlist ?: InvestmentWatchlist().also {
+            it.user = user
+            user.investmentWatchlist = it
+        }
+
+        payload.selectedSymbol?.let { watchlist.selectedSymbol = it }
+        payload.updatedAt?.let { watchlist.updatedAt = parseInstantOrNull(it) }
+        payload.items?.let { itemPayloads ->
+            watchlist.items.clear()
+            itemPayloads.forEach { itemPayload ->
+                val item = WatchlistItem(
+                    symbol = itemPayload.symbol,
+                    name = itemPayload.name,
+                    type = itemPayload.type,
+                    region = itemPayload.region,
+                    currency = itemPayload.currency,
+                    createdAt = parseInstantOrNull(itemPayload.createdAt),
+                )
+                item.watchlist = watchlist
+                watchlist.items.add(item)
+            }
         }
 
         val saved = userRepository.save(user)
@@ -302,127 +333,130 @@ class UserService(
         user.level = payload.level
 
         user.investmentWatchlist = payload.investmentWatchlist?.let { watchlistPayload ->
-            InvestmentWatchlist(
-                selectedSymbol = watchlistPayload.selectedSymbol,
-                updatedAt = parseInstantOrNull(watchlistPayload.updatedAt),
-            ).also { watchlist ->
-                watchlist.user = user
-                watchlistPayload.items.forEach { itemPayload ->
-                    val item = WatchlistItem(
-                        symbol = itemPayload.symbol,
-                        name = itemPayload.name,
-                        type = itemPayload.type,
-                        region = itemPayload.region,
-                        currency = itemPayload.currency,
-                        createdAt = parseInstantOrNull(itemPayload.createdAt),
-                    )
-                    item.watchlist = watchlist
-                    watchlist.items.add(item)
-                }
+            // Reuse existing entity to avoid duplicate-insert (preserve DB id)
+            val watchlist = existing?.investmentWatchlist ?: InvestmentWatchlist()
+            watchlist.selectedSymbol = watchlistPayload.selectedSymbol
+            watchlist.updatedAt = parseInstantOrNull(watchlistPayload.updatedAt)
+            watchlist.user = user
+            watchlist.items.clear()
+            watchlistPayload.items.forEach { itemPayload ->
+                val item = WatchlistItem(
+                    symbol = itemPayload.symbol,
+                    name = itemPayload.name,
+                    type = itemPayload.type,
+                    region = itemPayload.region,
+                    currency = itemPayload.currency,
+                    createdAt = parseInstantOrNull(itemPayload.createdAt),
+                )
+                item.watchlist = watchlist
+                watchlist.items.add(item)
             }
+            watchlist
         }
 
         user.journal = payload.journal?.let { journalPayload ->
-            Journal(nextChatMessageId = journalPayload.nextChatMessageId).also { journal ->
-                journal.user = user
-
-                journalPayload.chatByDate.forEach { (date, messages) ->
-                    val parsedDate = parseDateOrThrow(date)
-                    messages.forEach { message ->
-                        val parsed = if (message.sender == "user") ChatTextParser.parse(message.text) else ChatTextParser.ParseResult(null, null)
-                        val chat = ChatMessage(
-                            messageId = message.id,
-                            sender = message.sender,
-                            text = message.text,
-                            time = message.time,
-                            chatDate = parsedDate,
-                            parsedText = parsed.parsedText,
-                            parsedNominal = parsed.parsedNominal,
-                        )
-                        chat.journal = journal
-                        journal.chatMessages.add(chat)
-                    }
-                }
-
-                journalPayload.expensesByDate.forEach { (date, expenses) ->
-                    val parsedDate = parseDateOrThrow(date)
-                    expenses.forEach { expensePayload ->
-                        val expense = ExpenseEntry(
-                            amount = expensePayload.amount,
-                            description = expensePayload.description,
-                            category = expensePayload.category,
-                            expenseDate = parsedDate,
-                        )
-                        expense.journal = journal
-                        journal.expenses.add(expense)
-                    }
-                }
-
-                journalPayload.incomesByDate.forEach { (date, incomes) ->
-                    val parsedDate = parseDateOrThrow(date)
-                    incomes.forEach { incomePayload ->
-                        val income = IncomeEntry(
-                            amount = incomePayload.amount,
-                            description = incomePayload.description,
-                            source = incomePayload.source,
-                            incomeDate = parsedDate,
-                        )
-                        income.journal = journal
-                        journal.incomes.add(income)
-                    }
+            // Reuse existing entity to avoid duplicate-insert
+            val journal = existing?.journal ?: Journal()
+            journal.nextChatMessageId = journalPayload.nextChatMessageId
+            journal.user = user
+            journal.chatMessages.clear()
+            journalPayload.chatByDate.forEach { (date, messages) ->
+                val parsedDate = parseDateOrThrow(date)
+                messages.forEach { message ->
+                    val parsed = if (message.sender == "user") ChatTextParser.parse(message.text) else ChatTextParser.ParseResult(null, null)
+                    val chat = ChatMessage(
+                        messageId = message.id,
+                        sender = message.sender,
+                        text = message.text,
+                        time = message.time,
+                        chatDate = parsedDate,
+                        parsedText = parsed.parsedText,
+                        parsedNominal = parsed.parsedNominal,
+                    )
+                    chat.journal = journal
+                    journal.chatMessages.add(chat)
                 }
             }
+            journal.expenses.clear()
+            journalPayload.expensesByDate.forEach { (date, expenses) ->
+                val parsedDate = parseDateOrThrow(date)
+                expenses.forEach { expensePayload ->
+                    val expense = ExpenseEntry(
+                        amount = expensePayload.amount,
+                        description = expensePayload.description,
+                        category = expensePayload.category,
+                        expenseDate = parsedDate,
+                    )
+                    expense.journal = journal
+                    journal.expenses.add(expense)
+                }
+            }
+            journal.incomes.clear()
+            journalPayload.incomesByDate.forEach { (date, incomes) ->
+                val parsedDate = parseDateOrThrow(date)
+                incomes.forEach { incomePayload ->
+                    val income = IncomeEntry(
+                        amount = incomePayload.amount,
+                        description = incomePayload.description,
+                        source = incomePayload.source,
+                        incomeDate = parsedDate,
+                    )
+                    income.journal = journal
+                    journal.incomes.add(income)
+                }
+            }
+            journal
         }
 
         user.financialData = payload.financialData?.let { financialPayload ->
-            FinancialData(
-                pendapatan = financialPayload.pendapatan,
-                pengeluaranWajib = financialPayload.pengeluaranWajib,
-                tanggalPemasukan = financialPayload.tanggalPemasukan,
-                intendedTanggalPemasukan = financialPayload.intendedTanggalPemasukan,
-                hutangWajib = financialPayload.hutangWajib,
-                estimasiTabungan = financialPayload.estimasiTabungan,
-                danaDarurat = financialPayload.danaDarurat,
-                danaInvestasi = financialPayload.danaInvestasi,
-                currentPengeluaranLimit = financialPayload.currentPengeluaranLimit,
-                currentPengeluaranUsed = financialPayload.currentPengeluaranUsed,
-                currentSisaSaldoPool = financialPayload.currentSisaSaldoPool,
-                lastCycleCarryOverSaldo = financialPayload.lastCycleCarryOverSaldo,
-                currentCycleStart = parseLocalDateOrNull(financialPayload.currentCycleStart),
-                currentCycleEnd = parseLocalDateOrNull(financialPayload.currentCycleEnd),
-            ).also { financialData ->
-                financialData.budgetAllocation = BudgetAllocation(
-                    mode = financialPayload.budgetAllocation.mode,
-                    pengeluaran = financialPayload.budgetAllocation.pengeluaran,
-                    wants = financialPayload.budgetAllocation.wants,
-                    savings = financialPayload.budgetAllocation.savings,
-                )
-                financialData.monthlyTopUp = MonthlyTopUp(
-                    cycleKey = financialPayload.monthlyTopUp.cycleKey,
-                    fromTabunganCount = financialPayload.monthlyTopUp.fromTabunganCount,
-                    totalFromTabungan = financialPayload.monthlyTopUp.totalFromTabungan,
-                    totalFromDanaDarurat = financialPayload.monthlyTopUp.totalFromDanaDarurat,
-                )
-                financialData.savingsAllocation = SavingsAllocation(
-                    tabungan = financialPayload.savingsAllocation.tabungan,
-                    danaDarurat = financialPayload.savingsAllocation.danaDarurat,
-                    danaInvestasi = financialPayload.savingsAllocation.danaInvestasi,
-                )
-                financialData.investmentCycleAmounts.clear()
-                financialData.investmentCycleAmounts.putAll(financialPayload.investmentTracking.cycleAmounts)
-                financialData.user = user
-            }
+            // Reuse existing entity to avoid duplicate-insert
+            val financialData = existing?.financialData ?: FinancialData()
+            financialData.pendapatan = financialPayload.pendapatan
+            financialData.pengeluaranWajib = financialPayload.pengeluaranWajib
+            financialData.tanggalPemasukan = financialPayload.tanggalPemasukan
+            financialData.intendedTanggalPemasukan = financialPayload.intendedTanggalPemasukan
+            financialData.hutangWajib = financialPayload.hutangWajib
+            financialData.estimasiTabungan = financialPayload.estimasiTabungan
+            financialData.danaDarurat = financialPayload.danaDarurat
+            financialData.danaInvestasi = financialPayload.danaInvestasi
+            financialData.currentPengeluaranLimit = financialPayload.currentPengeluaranLimit
+            financialData.currentPengeluaranUsed = financialPayload.currentPengeluaranUsed
+            financialData.currentSisaSaldoPool = financialPayload.currentSisaSaldoPool
+            financialData.lastCycleCarryOverSaldo = financialPayload.lastCycleCarryOverSaldo
+            financialData.currentCycleStart = parseLocalDateOrNull(financialPayload.currentCycleStart)
+            financialData.currentCycleEnd = parseLocalDateOrNull(financialPayload.currentCycleEnd)
+            financialData.budgetAllocation = BudgetAllocation(
+                mode = financialPayload.budgetAllocation.mode,
+                pengeluaran = financialPayload.budgetAllocation.pengeluaran,
+                wants = financialPayload.budgetAllocation.wants,
+                savings = financialPayload.budgetAllocation.savings,
+            )
+            financialData.monthlyTopUp = MonthlyTopUp(
+                cycleKey = financialPayload.monthlyTopUp.cycleKey,
+                fromTabunganCount = financialPayload.monthlyTopUp.fromTabunganCount,
+                totalFromTabungan = financialPayload.monthlyTopUp.totalFromTabungan,
+                totalFromDanaDarurat = financialPayload.monthlyTopUp.totalFromDanaDarurat,
+            )
+            financialData.savingsAllocation = SavingsAllocation(
+                tabungan = financialPayload.savingsAllocation.tabungan,
+                danaDarurat = financialPayload.savingsAllocation.danaDarurat,
+                danaInvestasi = financialPayload.savingsAllocation.danaInvestasi,
+            )
+            financialData.investmentCycleAmounts.clear()
+            financialData.investmentCycleAmounts.putAll(financialPayload.investmentTracking.cycleAmounts)
+            financialData.user = user
+            financialData
         }
 
         user.streak = payload.streak?.let { streakPayload ->
-            Streak(
-                current = streakPayload.current,
-                longest = streakPayload.longest,
-                lastActiveDate = parseLocalDateOrNull(streakPayload.lastActiveDate),
-                freezeUsed = streakPayload.freezeUsed,
-            ).also { streak ->
-                streak.user = user
-            }
+            // Reuse existing entity to avoid duplicate-insert
+            val streak = existing?.streak ?: Streak()
+            streak.current = streakPayload.current
+            streak.longest = streakPayload.longest
+            streak.lastActiveDate = parseLocalDateOrNull(streakPayload.lastActiveDate)
+            streak.freezeUsed = streakPayload.freezeUsed
+            streak.user = user
+            streak
         }
 
         user.debts.clear()

@@ -8,6 +8,7 @@ import com.mauwealthy.web.dto.DebtPayload
 import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.IncomePayload
+import com.mauwealthy.web.dto.InvestmentWatchlistPatchPayload
 import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.service.UserService
 import jakarta.validation.Valid
@@ -45,6 +46,13 @@ class UserController(
         @PathVariable id: String,
         @RequestBody payload: FinancialDataPatchPayload,
     ): UserPayload = userService.patchFinancialData(id, payload)
+
+    /** PATCH /api/users/{id}/investment-watchlist - Partial update watchlist (items and/or selectedSymbol). */
+    @PatchMapping("/{id}/investment-watchlist")
+    fun patchInvestmentWatchlist(
+        @PathVariable id: String,
+        @RequestBody payload: InvestmentWatchlistPatchPayload,
+    ): UserPayload = userService.patchWatchlist(id, payload)
 
     /** DELETE /api/users/{id} - Remove a user and all related nested data. */
     @DeleteMapping("/{id}")

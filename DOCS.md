@@ -229,7 +229,7 @@ Contoh response:
 - Body: `UserPayload`
 - Success: `200 OK`
 
-Catatan: `id` pada path dan body harus sama.
+Catatan: `id` pada path dan body harus sama. Server akan **update** user yang sudah ada (bukan insert baru). Nested entities (`financialData`, `journal`, `investmentWatchlist`, `streak`) di-update in-place — ID internal database tetap sama.
 
 ### 4b. Patch Financial Data (Partial Update)
 - Method: `PATCH`
@@ -285,6 +285,50 @@ Catatan: `id` pada path dan body harus sama.
 Catatan: field yang tidak dikirim akan tetap memakai nilai lama. Lihat **Skenario Update FinancialData** untuk contoh real-world.
 
 
+
+### 4c. Patch Investment Watchlist (Partial Update)
+- Method: `PATCH`
+- URL: `/api/users/{id}/investment-watchlist`
+- Full URL: `http://localhost:8081/api/users/user-001/investment-watchlist`
+- Body: `InvestmentWatchlistPatchPayload` (hanya field yang mau diubah)
+- Success: `200 OK`
+
+> **Use-case:** Frontend cukup kirim watchlist saja, tidak perlu kirim seluruh `UserPayload`.
+
+**Patch hanya `selectedSymbol`:**
+```json
+{
+  "selectedSymbol": "BBRI.JK"
+}
+```
+
+**Patch seluruh daftar item (replace items):**
+```json
+{
+  "items": [
+    {
+      "symbol": "BBCA.JK",
+      "name": "Bank Central Asia",
+      "type": "stock",
+      "region": "ID",
+      "currency": "IDR",
+      "createdAt": "2026-04-20T08:30:00Z"
+    },
+    {
+      "symbol": "TLKM.JK",
+      "name": "Telkom Indonesia",
+      "type": "stock",
+      "region": "ID",
+      "currency": "IDR",
+      "createdAt": "2026-04-25T10:00:00Z"
+    }
+  ],
+  "selectedSymbol": "TLKM.JK",
+  "updatedAt": "2026-04-25T10:00:00Z"
+}
+```
+
+Catatan: field yang tidak dikirim tetap memakai nilai lama. Jika `items` dikirim, seluruh daftar item akan **diganti** (replace, bukan append).
 
 ### 5. Delete User
 - Method: `DELETE`
@@ -568,6 +612,15 @@ text           VARCHAR(1000) NOT NULL  -- raw input asli dari user
 | **Update sebagian** financialData user | `PATCH` | `/api/users/{id}/financial-data` |
 | **Update** financialData user | `PUT` | `/api/users/{id}` |
 | **Hapus** user (dan semua datanya) | `DELETE` | `/api/users/{id}` |
+
+### Cara Mengakses / Mengubah Investment Watchlist
+
+| Aksi | Method | URL |
+|------|--------|-----|
+| **Buat** user beserta watchlist | `POST` | `/api/users` |
+| **Baca** watchlist user | `GET` | `/api/users/{id}` |
+| **Update sebagian** watchlist (tanpa kirim full user) | `PATCH` | `/api/users/{id}/investment-watchlist` |
+| **Replace penuh** watchlist (via full user) | `PUT` | `/api/users/{id}` |
 
 ### Alur Update FinancialData
 
@@ -944,6 +997,35 @@ curl -X PATCH http://localhost:8081/api/users/user-001/financial-data \
       "danaDarurat": 2000000,
       "danaInvestasi": 1500000
     }
+  }'
+```
+
+### PATCH Investment Watchlist (Update selectedSymbol saja)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/investment-watchlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "selectedSymbol": "BBRI.JK"
+  }'
+```
+
+### PATCH Investment Watchlist (Replace items + selectedSymbol)
+```bash
+curl -X PATCH http://localhost:8081/api/users/user-001/investment-watchlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "symbol": "BBCA.JK",
+        "name": "Bank Central Asia",
+        "type": "stock",
+        "region": "ID",
+        "currency": "IDR",
+        "createdAt": "2026-04-20T08:30:00Z"
+      }
+    ],
+    "selectedSymbol": "BBCA.JK",
+    "updatedAt": "2026-04-25T10:00:00Z"
   }'
 ```
 

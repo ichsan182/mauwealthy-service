@@ -197,6 +197,12 @@ data class DebtPayload(
     val notes: String,
 )
 
+data class InvestmentWatchlistPatchPayload(
+    val items: List<WatchlistItemPayload>? = null,
+    val selectedSymbol: String? = null,
+    val updatedAt: String? = null,
+)
+
 data class CreateChatMessageRequest(
     val sender: String,
     val text: String,
