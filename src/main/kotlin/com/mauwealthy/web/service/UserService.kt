@@ -196,8 +196,7 @@ class UserService(
 
     fun findChatByDate(userId: String, date: String): List<ChatMessagePayload> {
         val parsedDate = parseDateOrThrow(date)
-        val journal = getUserOrThrow(userId).journal
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found")
+        val journal = getUserOrThrow(userId).journal ?: return emptyList()
 
         return journal.chatMessages
             .asSequence()
@@ -257,8 +256,7 @@ class UserService(
 
     fun findExpensesByDate(userId: String, date: String): List<ExpensePayload> {
         val parsedDate = parseDateOrThrow(date)
-        val journal = getUserOrThrow(userId).journal
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found")
+        val journal = getUserOrThrow(userId).journal ?: return emptyList()
 
         return journal.expenses
             .filter { it.expenseDate == parsedDate }
@@ -289,8 +287,7 @@ class UserService(
 
     fun findIncomesByDate(userId: String, date: String): List<IncomePayload> {
         val parsedDate = parseDateOrThrow(date)
-        val journal = getUserOrThrow(userId).journal
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found")
+        val journal = getUserOrThrow(userId).journal ?: return emptyList()
 
         return journal.incomes
             .filter { it.incomeDate == parsedDate }
@@ -630,4 +627,3 @@ class UserService(
             }
         }
 }
-

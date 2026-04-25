@@ -1133,3 +1133,25 @@ A: Bisa dalam 1 PATCH request. Contoh:
   }
 }
 ```
+---
+
+## Daftar Lengkap Endpoint
+
+| Method | Endpoint |
+|--------|----------|
+| `POST` | `http://localhost:8081/api/users` |
+| `GET` | `http://localhost:8081/api/users` |
+| `GET` | `http://localhost:8081/api/users/{id}` |
+| `PUT` | `http://localhost:8081/api/users/{id}` |
+| `DELETE` | `http://localhost:8081/api/users/{id}` |
+| `PATCH` | `http://localhost:8081/api/users/{id}/financial-data` |
+| `PATCH` | `http://localhost:8081/api/users/{id}/investment-watchlist` |
+| `GET` | `http://localhost:8081/api/users/{id}/debts` |
+| `POST` | `http://localhost:8081/api/users/{id}/debts` |
+| `GET` | `http://localhost:8081/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
+| `POST` | `http://localhost:8081/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
+| `GET` | `http://localhost:8081/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| `POST` | `http://localhost:8081/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| `GET` | `http://localhost:8081/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+| `POST` | `http://localhost:8081/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+
