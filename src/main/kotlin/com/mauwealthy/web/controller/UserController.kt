@@ -5,6 +5,7 @@ import com.mauwealthy.web.dto.CreateChatMessageRequest
 import com.mauwealthy.web.dto.CreateExpenseRequest
 import com.mauwealthy.web.dto.CreateIncomeRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.DebtSummaryPayload
 import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.IncomePayload
@@ -62,6 +63,10 @@ class UserController(
     /** GET /api/users/{id}/debts - Get all debt records for a specific user. */
     @GetMapping("/{id}/debts")
     fun findDebts(@PathVariable id: String): List<DebtPayload> = userService.findDebtsByUserId(id)
+
+    /** GET /api/users/{id}/debts/summary - Get total principal and remaining debt for a specific user. */
+    @GetMapping("/{id}/debts/summary")
+    fun findDebtSummary(@PathVariable id: String): DebtSummaryPayload = userService.findDebtSummaryByUserId(id)
 
     /** POST /api/users/{id}/debts - Add one debt item to a user. */
     @PostMapping("/{id}/debts")

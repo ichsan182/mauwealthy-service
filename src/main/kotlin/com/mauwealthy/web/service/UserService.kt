@@ -5,6 +5,7 @@ import com.mauwealthy.web.dto.CreateChatMessageRequest
 import com.mauwealthy.web.dto.CreateExpenseRequest
 import com.mauwealthy.web.dto.CreateIncomeRequest
 import com.mauwealthy.web.dto.DebtPayload
+import com.mauwealthy.web.dto.DebtSummaryPayload
 import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.IncomePayload
@@ -174,6 +175,13 @@ class UserService(
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
         }
         return debtRepository.findAllByUserId(userId).map(::toDebtPayload)
+    }
+
+    fun findDebtSummaryByUserId(userId: String): DebtSummaryPayload {
+        if (!userRepository.existsById(userId)) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+        }
+        return DebtSummaryCalculator.fromDebts(debtRepository.findAllByUserId(userId))
     }
 
     @Transactional
@@ -589,6 +597,7 @@ class UserService(
             )
         },
         debts = entity.debts.map(::toDebtPayload),
+        debtSummary = DebtSummaryCalculator.fromDebts(entity.debts),
     )
 
     private fun toDebtPayload(debt: Debt): DebtPayload = DebtPayload(

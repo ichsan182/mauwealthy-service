@@ -134,7 +134,11 @@ Contoh endpoint lengkap:
       "dueDay": 10,
       "notes": "Bayar via autodebet"
     }
-  ]
+  ],
+  "debtSummary": {
+    "totalPrincipalAmount": 15000000,
+    "totalRemainingAmount": 8000000
+  }
 }
 ```
 
@@ -154,7 +158,18 @@ Contoh endpoint lengkap:
 }
 ```
 
-### 3) CreateChatMessageRequest
+### 3) DebtSummaryPayload
+
+```json
+{
+  "totalPrincipalAmount": 3000000,
+  "totalRemainingAmount": 2500000
+}
+```
+
+> `debtSummary` adalah field **turunan / calculated field**. Untuk `POST /api/users` dan `PUT /api/users/{id}`, field ini **tidak wajib dikirim** dan jika dikirim akan **diabaikan** oleh backend. Nilainya selalu dihitung ulang dari seluruh data `debts` milik user.
+
+### 4) CreateChatMessageRequest
 
 ```json
 {
@@ -164,7 +179,7 @@ Contoh endpoint lengkap:
 }
 ```
 
-### 4) ChatMessagePayload (response chat)
+### 5) ChatMessagePayload (response chat)
 
 ```json
 {
@@ -211,7 +226,11 @@ Contoh response:
     "journal": null,
     "financialData": null,
     "streak": null,
-    "debts": []
+    "debts": [],
+    "debtSummary": {
+      "totalPrincipalAmount": 0,
+      "totalRemainingAmount": 0
+    }
   }
 ]
 ```
@@ -367,6 +386,22 @@ Contoh response:
 - Success: `201 Created`
 
 Contoh request body: pakai JSON `DebtPayload` di atas.
+
+### 7b. Get Debt Summary By User ID
+- Method: `GET`
+- URL: `/api/users/{id}/debts/summary`
+- Full URL: `http://localhost:8081/api/users/user-001/debts/summary`
+- Success: `200 OK`
+
+Contoh response:
+```json
+{
+  "totalPrincipalAmount": 3000000,
+  "totalRemainingAmount": 2500000
+}
+```
+
+> Best practice: gunakan `principalAmount` per debt sebagai nilai kontrak awal yang tidak berubah, dan gunakan `remainingAmount` per debt untuk tracking pembayaran. Total user dihitung otomatis dari seluruh debt aktif milik user tersebut.
 
 ### 8. Get Chat By Date
 - Method: `GET`
@@ -1148,6 +1183,7 @@ A: Bisa dalam 1 PATCH request. Contoh:
 | `PATCH` | `http://localhost:8081/api/users/{id}/investment-watchlist` |
 | `GET` | `http://localhost:8081/api/users/{id}/debts` |
 | `POST` | `http://localhost:8081/api/users/{id}/debts` |
+| `GET` | `http://localhost:8081/api/users/{id}/debts/summary` |
 | `GET` | `http://localhost:8081/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
 | `POST` | `http://localhost:8081/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
 | `GET` | `http://localhost:8081/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |

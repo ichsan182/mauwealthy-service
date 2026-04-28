@@ -42,6 +42,13 @@ data class UserPayload(
 
     @field:Valid
     val debts: List<DebtPayload> = emptyList(),
+
+    val debtSummary: DebtSummaryPayload = DebtSummaryPayload(),
+)
+
+data class DebtSummaryPayload(
+    val totalPrincipalAmount: Long = 0,
+    val totalRemainingAmount: Long = 0,
 )
 
 data class InvestmentWatchlistPayload(
