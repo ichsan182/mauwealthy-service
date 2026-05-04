@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'com.mauwealthy.web'
-version = '1.0.0-APP'
+version = 'app'
 
 java {
 	toolchain {
