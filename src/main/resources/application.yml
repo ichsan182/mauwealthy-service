@@ -5,6 +5,34 @@ spring:
     active:
       - prod
 
+app:
+  cors:
+    allowed-origin-patterns:
+      - http://localhost:4200
+      - http://127.0.0.1:4200
+      - http://127.0.0.1:12653
+      - https://mauwealthy.my.id
+      - https://*.mauwealthy.my.id
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - Accept
+      - Origin
+      - X-Requested-With
+    exposed-headers:
+      - Authorization
+      - Content-Type
+      - Location
+    allow-credentials: true
+    max-age: 3600
+
 server:
   port: 12653
 
