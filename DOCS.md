@@ -453,6 +453,7 @@ Contoh response:
 ```json
 [
   {
+    "id": 12,
     "amount": 50000,
     "description": "Makan siang",
     "category": "Food"
@@ -475,6 +476,15 @@ Contoh response:
 - Success: `201 Created`
 - Response: `ExpensePayload`
 
+
+### 11c. Delete Expense (Partial by ID)
+- Method: `DELETE`
+- URL: `/api/users/{id}/journal/expenses/{expenseId}`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/expenses/12`
+- Success: `204 No Content`
+
+Catatan: hanya entry expense dengan `expenseId` tersebut yang dihapus. Entry expense lain tetap aman.
+
 ### 12. Get Incomes By Date
 - Method: `GET`
 - URL: `/api/users/{id}/journal/incomes?date=yyyy-MM-dd`
@@ -486,6 +496,7 @@ Contoh response:
 ```json
 [
   {
+    "id": 8,
     "amount": 1000000,
     "description": "Gaji freelance",
     "source": "Freelance"
@@ -508,6 +519,15 @@ Contoh response:
 - Success: `201 Created`
 - Response: `IncomePayload`
 
+
+### 13c. Delete Income (Partial by ID)
+- Method: `DELETE`
+- URL: `/api/users/{id}/journal/incomes/{incomeId}`
+- Full URL: `http://localhost:8081/api/users/user-001/journal/incomes/8`
+- Success: `204 No Content`
+
+Catatan: hanya entry income dengan `incomeId` tersebut yang dihapus. Entry income lain tetap aman.
+
 ## FinancialData
 
 > **Penting:** `financialData` bisa dikelola dengan 2 cara: `PATCH` khusus financial data (partial update) atau lewat `POST/GET/PUT/DELETE` pada endpoint user.
@@ -522,8 +542,10 @@ Contoh response:
 | Tambah chat | `POST` | `/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
 | Lihat pengeluaran per tanggal | `GET` | `/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
 | Tambah pengeluaran | `POST` | `/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| Hapus pengeluaran by id | `DELETE` | `/api/users/{id}/journal/expenses/{expenseId}` |
 | Lihat pemasukan per tanggal | `GET` | `/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
 | Tambah pemasukan | `POST` | `/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+| Hapus pemasukan by id | `DELETE` | `/api/users/{id}/journal/incomes/{incomeId}` |
 
 > Catatan: data journal **bulk** (semua tanggal sekaligus) bisa dibaca lewat `GET /api/users/{id}` — field `journal.chatByDate`, `journal.expensesByDate`, `journal.incomesByDate`.
 
@@ -1188,6 +1210,8 @@ A: Bisa dalam 1 PATCH request. Contoh:
 | `POST` | `http://localhost:8081/api/users/{id}/journal/chats?date=yyyy-MM-dd` |
 | `GET` | `http://localhost:8081/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
 | `POST` | `http://localhost:8081/api/users/{id}/journal/expenses?date=yyyy-MM-dd` |
+| `DELETE` | `http://localhost:8081/api/users/{id}/journal/expenses/{expenseId}` |
 | `GET` | `http://localhost:8081/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
 | `POST` | `http://localhost:8081/api/users/{id}/journal/incomes?date=yyyy-MM-dd` |
+| `DELETE` | `http://localhost:8081/api/users/{id}/journal/incomes/{incomeId}` |
 

@@ -83,12 +83,14 @@ data class ChatMessagePayload(
 )
 
 data class ExpensePayload(
+    val id: Long? = null,
     val amount: Long,
     val description: String,
     val category: String,
 )
 
 data class IncomePayload(
+    val id: Long? = null,
     val amount: Long,
     val description: String,
     val source: String,
@@ -227,4 +229,7 @@ data class CreateIncomeRequest(
     val description: String,
     val source: String,
 )
+
+
+
 

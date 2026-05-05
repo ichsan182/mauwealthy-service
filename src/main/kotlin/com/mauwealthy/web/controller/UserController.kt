@@ -109,6 +109,14 @@ class UserController(
     ): ExpensePayload = userService.addExpense(id, date, payload)
 
     /** GET /api/users/{id}/journal/incomes?date=yyyy-MM-dd - Get incomes by date. */
+    @DeleteMapping("/{id}/journal/expenses/{expenseId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteExpense(
+        @PathVariable id: String,
+        @PathVariable expenseId: Long,
+    ) = userService.deleteExpense(id, expenseId)
+
+    /** GET /api/users/{id}/journal/incomes?date=yyyy-MM-dd - Get incomes by date. */
     @GetMapping("/{id}/journal/incomes")
     fun findIncomesByDate(
         @PathVariable id: String,
@@ -123,4 +131,13 @@ class UserController(
         @RequestParam date: String,
         @RequestBody payload: CreateIncomeRequest,
     ): IncomePayload = userService.addIncome(id, date, payload)
+
+
+    /** DELETE /api/users/{id}/journal/incomes/{incomeId} - Delete one income entry by id. */
+    @DeleteMapping("/{id}/journal/incomes/{incomeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteIncome(
+        @PathVariable id: String,
+        @PathVariable incomeId: Long,
+    ) = userService.deleteIncome(id, incomeId)
 }

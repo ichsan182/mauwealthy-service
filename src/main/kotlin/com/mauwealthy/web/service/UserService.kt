@@ -268,7 +268,7 @@ class UserService(
 
         return journal.expenses
             .filter { it.expenseDate == parsedDate }
-            .map { ExpensePayload(amount = it.amount, description = it.description, category = it.category) }
+            .map { ExpensePayload(id = it.id, amount = it.amount, description = it.description, category = it.category) }
     }
 
     @Transactional
@@ -290,7 +290,18 @@ class UserService(
         journal.expenses.add(expense)
         userRepository.save(user)
 
-        return ExpensePayload(amount = expense.amount, description = expense.description, category = expense.category)
+        return ExpensePayload(id = expense.id, amount = expense.amount, description = expense.description, category = expense.category)
+    }
+
+    @Transactional
+    fun deleteExpense(userId: String, expenseId: Long) {
+        val user = getUserOrThrow(userId)
+        val journal = user.journal ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Expense not found")
+        val isDeleted = journal.expenses.removeIf { it.id == expenseId }
+        if (!isDeleted) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Expense not found")
+        }
+        userRepository.save(user)
     }
 
     fun findIncomesByDate(userId: String, date: String): List<IncomePayload> {
@@ -299,7 +310,7 @@ class UserService(
 
         return journal.incomes
             .filter { it.incomeDate == parsedDate }
-            .map { IncomePayload(amount = it.amount, description = it.description, source = it.source) }
+            .map { IncomePayload(id = it.id, amount = it.amount, description = it.description, source = it.source) }
     }
 
     @Transactional
@@ -321,7 +332,18 @@ class UserService(
         journal.incomes.add(income)
         userRepository.save(user)
 
-        return IncomePayload(amount = income.amount, description = income.description, source = income.source)
+        return IncomePayload(id = income.id, amount = income.amount, description = income.description, source = income.source)
+    }
+
+    @Transactional
+    fun deleteIncome(userId: String, incomeId: Long) {
+        val user = getUserOrThrow(userId)
+        val journal = user.journal ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Income not found")
+        val isDeleted = journal.incomes.removeIf { it.id == incomeId }
+        if (!isDeleted) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Income not found")
+        }
+        userRepository.save(user)
     }
 
     private fun getUserOrThrow(id: String): User = userRepository.findById(id)
@@ -531,6 +553,7 @@ class UserService(
                         keySelector = { it.expenseDate.toString() },
                         valueTransform = {
                             com.mauwealthy.web.dto.ExpensePayload(
+                                id = it.id,
                                 amount = it.amount,
                                 description = it.description,
                                 category = it.category,
@@ -542,6 +565,7 @@ class UserService(
                         keySelector = { it.incomeDate.toString() },
                         valueTransform = {
                             com.mauwealthy.web.dto.IncomePayload(
+                                id = it.id,
                                 amount = it.amount,
                                 description = it.description,
                                 source = it.source,
