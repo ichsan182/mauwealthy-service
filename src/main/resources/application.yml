@@ -3,7 +3,7 @@ spring:
     name: mauwealthy_service
   profiles:
     active:
-      - prod
+      - dev
 
 app:
   cors:
@@ -35,6 +35,27 @@ app:
 
 server:
   port: 12653
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mauwealthy_db
+    username: postgres
+    password: 13qeadzc
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
 
 ---
 spring:
