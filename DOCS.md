@@ -938,6 +938,7 @@ Format error dari API:
 Contoh pesan lain:
 - `User not found` (`404`)
 - `Email already exists` (`409`)
+- `Phone number already exists` (`409`)
 - `User id already exists` (`409`)
 - `Path id and body id must match` (`400`)
 - `Date must use ISO format yyyy-MM-dd` (`400`)

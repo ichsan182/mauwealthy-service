@@ -10,7 +10,7 @@ import com.mauwealthy.web.dto.ExpensePayload
 import com.mauwealthy.web.dto.FinancialDataPatchPayload
 import com.mauwealthy.web.dto.IncomePayload
 import com.mauwealthy.web.dto.InvestmentWatchlistPatchPayload
-import com.mauwealthy.web.dto.UserPayload
+    import com.mauwealthy.web.dto.UserPayload
 import com.mauwealthy.web.entity.BudgetAllocation
 import com.mauwealthy.web.entity.ChatMessage
 import com.mauwealthy.web.entity.Debt
@@ -50,6 +50,9 @@ class UserService(
         if (userRepository.existsByEmail(payload.email)) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already exists")
         }
+        if (userRepository.existsByPhone(payload.phone)) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Phone number already exists")
+        }
 
         val saved = userRepository.save(toEntity(payload, null))
         return toPayload(saved)
@@ -64,6 +67,9 @@ class UserService(
         val existing = getUserOrThrow(id)
         if (existing.email != payload.email && userRepository.existsByEmail(payload.email)) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already exists")
+        }
+        if (existing.phone != payload.phone && userRepository.existsByPhone(payload.phone)) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Phone number already exists")
         }
 
         val saved = userRepository.save(toEntity(payload, existing))
